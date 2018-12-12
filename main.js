@@ -43,7 +43,7 @@ module.exports.loop = function () {
     console.log('C:' + collectorPopulation, 'U:' + upgraderPopulation + '(BU:' + bigUpgraderPopulation + ')', 'B:', builderPopulation)
 
     var hasMaxEnergy = SPAWN.energy >= 300
-    var notEnoughCreeps = numberOfCreeps < MAX_CREEPS
+    var notEnoughCreeps = (numberOfCreeps - builderPopulation) < MAX_CREEPS
     if(hasMaxEnergy && notEnoughCreeps) {
         var maxCollectors
         if (CURRENT_MODE === MODES.NORMAL) {
@@ -84,21 +84,16 @@ module.exports.loop = function () {
                 })
                 Game.creeps[nonBigUpgraderNameList[0]].suicide()
             }
+        } else {
+            var MAX_BUILDERS = 2
+            if (builderPopulation < MAX_BUILDERS) {
+               var body = [WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE]
+                var memory = { memory: { role: BUILDER } }
+                var result = SPAWN.spawnCreep(body, Date.now(), memory)
+                console.log('spawn builder')
+            }
         }
     }
-
-    // var hasEnoughCreeps = numberOfCreeps >= MAX_CREEPS
-    // var switchToBuildMode = hasMaxEnergy && hasEnoughCreeps && CURRENT_MODE === NORMAL
-    // if (switchToBuildMode) {
-    //     var collectorNameList = creepNameList.filter(function(creepName) {
-    //         return Game.creeps[creepName].memory.role === COLLECTOR
-    //     })
-    //     Game.creeps[collectorNameList[0]].memory.role = BUILDER
-    //     Game.creeps[collectorNameList[1]].memory.role = BUILDER
-    //     Game.creeps[collectorNameList[2]].memory.role = BUILDER
-
-    //     CURRENT_MODE = MODES.BUILD
-    // }
     
     runAllWorkers()
 }
@@ -123,16 +118,21 @@ function runAllWorkers() {
                 doUpgraderWork(creep)
                 break;
             }
+            case BUILDER: {
+                if(creep.carry.energy < creep.carryCapacity) {
+                    creep.say('NOT ENOUGH')
+                    harvestBuildEnergy(creep)
+                } else {
+                    creep.say('GO BUILD')
+                    var buildTargets = creep.room.find(FIND_CONSTRUCTION_SITES);
+                    var errorCode = creep.build(buildTargets[0])
+    			    if(errorCode == ERR_NOT_IN_RANGE) {
+                        creep.moveTo(buildTargets[0], {visualizePathStyle: {stroke: '#005566' }});
+                    }
+                }
+                break;
+            }
         }
-
-        // if (creep.memory.role === COLLECTOR) {
-        //     if(creep.carry.energy < creep.carryCapacity) {
-        //         moveOrHarvestSource(creep, SPAWN)
-        //     } else {
-        //         transferEnergy(creep, SPAWN)
-        //     }
-        // } else if (creep.memory.role === UPGRADER) {
-        //     doUpgraderWork(creep)
         // } else if (creep.memory.role === BUILDER_UPGRADER) {
         //     var buildTargets = creep.room.find(FIND_CONSTRUCTION_SITES);
         //     if(buildTargets.length > 0) {
@@ -182,6 +182,13 @@ function moveOrHarvestSource(creep) {
     // } 
 }
 
+function harvestBuildEnergy(creep) {
+    var sources = creep.room.find(FIND_SOURCES);
+    if(creep.harvest(sources[BOTTOM_LEFT_SOURCE]) == ERR_NOT_IN_RANGE) {
+        creep.moveTo(sources[BOTTOM_LEFT_SOURCE], {visualizePathStyle: {stroke: '#005566'}});
+  005566}
+}
+
 function transferEnergy(creep) {
     if( creep.transfer(SPAWN, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE && SPAWN.energy < ENERGY_LIMIT) {
         creep.moveTo(SPAWN, {visualizePathStyle: {stroke: '#ffffff'}});
@@ -190,8 +197,16 @@ function transferEnergy(creep) {
         var extension = creep.pos.findClosestByRange(FIND_STRUCTURES, { filter: function (s) {
             return s.structureType == STRUCTURE_EXTENSION
         }});
-        if( creep.transfer(extension, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-            creep.moveTo(extension, {visualizePathStyle: {stroke: '#ffffff'}});
+
+        var extensions = SPAWN.room.find(FIND_MY_STRUCTURES, {
+           filter: { structureType: STRUCTURE_EXTENSION }
+        });
+        var availableExtension = extensions.find(function(ext) {
+            return ext.energy < 50
+        })
+        console.log('available ext', availableExtension)
+        if( creep.transfer(availableExtension, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+            creep.moveTo(availableExtension, {visualizePathStyle: {stroke: '#ffffff'}});
         } else {
             creep.say('ext full')
         }
