@@ -13,39 +13,21 @@ module.exports.loop = function () {
     var SPAWN = Game.spawns['Alex']
     var numberOfCreeps = Object.keys(Game.creeps).length
     
-    // if(SPAWN.energy == ENERGY_LIMIT && numberOfCreeps <= MAX_CREEPS) {
-    //     // console.log('enough energy to spawn creep')
-    //     var random = Date.now() % 6
-    //     if(random <= 2) {
-    //         SPAWN.spawnCreep([WORK, WORK, CARRY, MOVE], Date.now(), {
-    //             memory: {
-    //                 role: COLLECTOR,
-    //             }
-    //         })  
-    //     } else if (random <= 4){
-    //         SPAWN.spawnCreep([WORK, WORK, CARRY, MOVE], Date.now(), {
-    //             memory: {
-    //                 // role: UPGRADER,
-    //                 role: BUILDER_UPGRADER
-    //                 // source: source1
-    //             }
-    //         })   
-    //     } else if (random <= 5){
-    //          SPAWN.spawnCreep([WORK, WORK, CARRY, MOVE], Date.now(), {
-    //             memory: {
-    //                 role: UPGRADER
-    //             }
-    //         })   
-    //     }
-    // } else if (SPAWN.enerygy === ENERGY_LIMIT){
-    //     console.log('too much energy')
-    // }
+    if(SPAWN.energy == ENERGY_LIMIT && numberOfCreeps <= MAX_CREEPS) {
+        var random = Date.now() % 6
+        if(random <= 2) {
+            SPAWN.spawnCreep([WORK, WORK, CARRY, MOVE], Date.now(), {
+                memory: { role: COLLECTOR }
+            })  
+        } else if (random <= 6){
+             SPAWN.spawnCreep([WORK, WORK, CARRY, MOVE], Date.now(), {
+                memory: { role: UPGRADER }
+            })   
+        }
+    }
     
     for(var name in Game.creeps) {
         var creep = Game.creeps[name];
-        
-        //  var result = SPAWN.renewCreep(creep)
-        
         if (creep.memory.role === COLLECTOR) {
             if(creep.carry.energy < creep.carryCapacity) {
                 moveOrHarvestSource(creep, SPAWN)
@@ -58,8 +40,6 @@ module.exports.loop = function () {
             // console.log('im builder upgrader')
             var buildTargets = creep.room.find(FIND_CONSTRUCTION_SITES);
             if(buildTargets.length > 0) {
-                // console.log('can build')
-                
                 const errorCode = creep.build(buildTargets[0])
                 
     			if(errorCode == ERR_NOT_IN_RANGE) {
@@ -69,12 +49,9 @@ module.exports.loop = function () {
                         moveOrHarvestSource(creep)
                     }
     			} else if (errorCode == ERR_NOT_ENOUGH_RESOURCES) {
-    			 //   console.log('need to harvest first')
     			    moveOrHarvestSource(creep)
     			}
     		} else {
-    		    // upgrade the controller if there are no construction sites
-    		  //  console.log('do nothing')
     		    doUpgraderWork(creep)
     		}
         }
