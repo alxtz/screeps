@@ -6,28 +6,27 @@ var BOTTOM_RIGHT_SOURCE = 1
 var COLLECTOR = 'COLLECTOR'
 var UPGRADER = 'UPGRADER'
 var BIG_UPGRADER = 'BIG_UPGRADER'
+var BIG_COLLECTOR = 'BIG_COLLECTOR'
 var BUILDER = 'BUILDER'
 
 // config
 var ENERGY_LIMIT = 300
-var ROAD_ENERGY_COST = 300
 var MAX_CREEPS = 18
-var MODES = {
-    NORMAL: 'NORMAL',
-    BUILD: 'BUILD'
-}
 
 // liveObjects
 var SPAWN
-var CURRENT_MODE = MODES.NORMAL
+var TOTAL_ENERGY
 
 module.exports.loop = function () {
     SPAWN = Game.spawns['Alex']
+    TOTAL_ENERGY = SPAWN.room.energyAvailable
     var numberOfCreeps = Object.keys(Game.creeps).length
+
+    console.log('TOTAL_ENERGY', TOTAL_ENERGY)
 
     var creepNameList = Object.keys(Game.creeps)
     var collectorPopulation = creepNameList.filter(function(creepName) {
-        return Game.creeps[creepName].memory.role === COLLECTOR
+        return Game.creeps[creepName].memory.role === COLLECTOR || Game.creeps[creepName].memory.role === BIG_COLLECTOR
     }).length
     var upgraderPopulation = creepNameList.filter(function(creepName) {
         return Game.creeps[creepName].memory.role === UPGRADER || Game.creeps[creepName].memory.role === BIG_UPGRADER
@@ -39,18 +38,19 @@ module.exports.loop = function () {
     var bigUpgraderPopulation = creepNameList.filter(function(creepName) {
         return Game.creeps[creepName].memory.role === BIG_UPGRADER
     }).length
-    // console.log('MODE:', CURRENT_MODE)
-    console.log('C:' + collectorPopulation, 'U:' + upgraderPopulation + '(BU:' + bigUpgraderPopulation + ')', 'B:', builderPopulation)
+    var bigCollectorPopulation = creepNameList.filter(function(creepName) {
+        return Game.creeps[creepName].memory.role === BIG_COLLECTOR
+    }).length
+    console.log(
+        'C:' + collectorPopulation + '(BC:' + bigCollectorPopulation + ')',
+        'U:' + upgraderPopulation + '(BU:' + bigUpgraderPopulation + ')',
+        'B:' + builderPopulation
+    )
 
     var hasMaxEnergy = SPAWN.energy >= 300
     var notEnoughCreeps = (numberOfCreeps - builderPopulation) < MAX_CREEPS
     if(hasMaxEnergy && notEnoughCreeps) {
-        var maxCollectors
-        if (CURRENT_MODE === MODES.NORMAL) {
-            maxCollectors = 9
-        } else if (CURRENT_MODE === MODES.BUILD) {
-            maxCollectors = 6
-        }
+        var maxCollectors = 9
         var collectorNotEnough = collectorPopulation < maxCollectors
 
         if(collectorNotEnough) {
@@ -73,8 +73,22 @@ module.exports.loop = function () {
         var upgraderNameList = creepNameList.filter(function(creepName) {
             return Game.creeps[creepName].memory.role === UPGRADER
         })
-        if (upgraderNameList.length > 0) {
-            var body = [WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE]
+        var collectorNameList = creepNameList.filter(function(creepName) {
+            return Game.creeps[creepName].memory.role === COLLECTOR
+        })
+        if (collectorNameList.length > 0) {
+            var body = [WORK, WORK, WORK, CARRY, MOVE, MOVE, MOVE]
+            var memory = { memory: { role: BIG_COLLECTOR } }
+            var result = SPAWN.spawnCreep(body, Date.now(), memory)
+
+            if (result === OK) {
+                var nonBigCollectorNameList = creepNameList.filter(function(creepName) {
+                    return Game.creeps[creepName].memory.role === COLLECTOR
+                })
+                Game.creeps[nonBigCollectorNameList[0]].suicide()
+            }
+        } else if (upgraderNameList.length > 0) {
+            var body = [WORK, WORK, CARRY, CARRY, CARRY,MOVE, MOVE, MOVE]
             var memory = { memory: { role: BIG_UPGRADER } }
             var result = SPAWN.spawnCreep(body, Date.now(), memory)
 
@@ -87,10 +101,9 @@ module.exports.loop = function () {
         } else {
             var MAX_BUILDERS = 2
             if (builderPopulation < MAX_BUILDERS) {
-               var body = [WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE]
+               var body = [WORK, WORK, CARRY, CARRY, CARRY, CARRY, MOVE, MOVE]
                 var memory = { memory: { role: BUILDER } }
                 var result = SPAWN.spawnCreep(body, Date.now(), memory)
-                // console.log('spawn builder')
             }
         }
     }
@@ -105,6 +118,12 @@ function runAllWorkers() {
 
         switch(role) {
             case COLLECTOR: {
+                if (creep.carry.energy < creep.carryCapacity) moveOrHarvestSource(creep)
+                else transferEnergy(creep)
+                break;
+            }
+            case BIG_COLLECTOR: {
+                creep.say('BIG')
                 if (creep.carry.energy < creep.carryCapacity) moveOrHarvestSource(creep)
                 else transferEnergy(creep)
                 break;
@@ -133,24 +152,6 @@ function runAllWorkers() {
                 break;
             }
         }
-        // } else if (creep.memory.role === BUILDER_UPGRADER) {
-        //     var buildTargets = creep.room.find(FIND_CONSTRUCTION_SITES);
-        //     if(buildTargets.length > 0) {
-        //         const errorCode = creep.build(buildTargets[0])
-                
-    	// 		if(errorCode == ERR_NOT_IN_RANGE) {
-        //             if(creep.carry.energy == creep.carryCapacity) {
-    	// 			    creep.moveTo(buildTargets[0], {visualizePathStyle: {stroke: '#ff00ff' }});
-        //             } else {
-        //                 moveOrHarvestSource(creep)
-        //             }
-    	// 		} else if (errorCode == ERR_NOT_ENOUGH_RESOURCES) {
-    	// 		    moveOrHarvestSource(creep)
-    	// 		}
-    	// 	} else {
-    	// 	    doUpgraderWork(creep)
-    	// 	}
-        // }
     }
 }
 
@@ -171,21 +172,15 @@ function doUpgraderWork(creep) {
 
 function moveOrHarvestSource(creep) {
     var sources = creep.room.find(FIND_SOURCES);
-    // if (creep.memory.role === BUILDER_UPGRADER){
-    //     if(creep.harvest(sources[BOTTOM_LEFT_SOURCE]) == ERR_NOT_IN_RANGE) {
-    //         creep.moveTo(sources[BOTTOM_LEFT_SOURCE], {visualizePathStyle: {stroke: '#ffffff'}});
-    //     }
-    // } else {
-        if(creep.harvest(sources[BOTTOM_RIGHT_SOURCE]) == ERR_NOT_IN_RANGE) {
-            creep.moveTo(sources[BOTTOM_RIGHT_SOURCE], {visualizePathStyle: {stroke: '#ffffff'}});
-        }
-    // } 
+    if(creep.harvest(sources[BOTTOM_RIGHT_SOURCE]) == ERR_NOT_IN_RANGE) {
+        creep.moveTo(sources[BOTTOM_RIGHT_SOURCE], {visualizePathStyle: {stroke: '#ffffff'}});
+    }
 }
 
 function harvestBuildEnergy(creep) {
     var sources = creep.room.find(FIND_SOURCES);
     const result = creep.harvest(sources[BOTTOM_LEFT_SOURCE])
-    console.log('creep.carry', creep.carry)
+    // console.log('creep.carry', creep.carry)
     if (creep.carry.energy === creep.carryCapacity) {
         creep.say('full')
         return 'FULL'
