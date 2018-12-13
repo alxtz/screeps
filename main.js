@@ -39,7 +39,7 @@ module.exports.loop = function () {
     var bigUpgraderPopulation = creepNameList.filter(function(creepName) {
         return Game.creeps[creepName].memory.role === BIG_UPGRADER
     }).length
-    console.log('MODE:', CURRENT_MODE)
+    // console.log('MODE:', CURRENT_MODE)
     console.log('C:' + collectorPopulation, 'U:' + upgraderPopulation + '(BU:' + bigUpgraderPopulation + ')', 'B:', builderPopulation)
 
     var hasMaxEnergy = SPAWN.energy >= 300
@@ -90,7 +90,7 @@ module.exports.loop = function () {
                var body = [WORK, WORK, CARRY, CARRY, CARRY, MOVE, MOVE]
                 var memory = { memory: { role: BUILDER } }
                 var result = SPAWN.spawnCreep(body, Date.now(), memory)
-                console.log('spawn builder')
+                // console.log('spawn builder')
             }
         }
     }
@@ -114,20 +114,20 @@ function runAllWorkers() {
                 break;
             }
             case BIG_UPGRADER: {
-                creep.say('BIG')
+                // creep.say('BIG')
                 doUpgraderWork(creep)
                 break;
             }
             case BUILDER: {
-                if(creep.carry.energy < creep.carryCapacity) {
-                    creep.say('NOT ENOUGH')
-                    harvestBuildEnergy(creep)
+                creep.say('builder')
+                var buildTargets = creep.room.find(FIND_CONSTRUCTION_SITES);
+                var errorCode = creep.build(buildTargets[0])
+                if (errorCode === OK) {
                 } else {
-                    creep.say('GO BUILD')
-                    var buildTargets = creep.room.find(FIND_CONSTRUCTION_SITES);
-                    var errorCode = creep.build(buildTargets[0])
-    			    if(errorCode == ERR_NOT_IN_RANGE) {
-                        creep.moveTo(buildTargets[0], {visualizePathStyle: {stroke: '#005566' }});
+    			    if(errorCode == ERR_NOT_IN_RANGE && creep.carry.energy === creep.carryCapacity) {
+                        creep.moveTo(buildTargets[0], {visualizePathStyle: {stroke: '#FF00FF' }});
+                    } else if (creep.carry.energy < creep.carryCapacity) {
+                        harvestBuildEnergy(creep)
                     }
                 }
                 break;
@@ -184,9 +184,18 @@ function moveOrHarvestSource(creep) {
 
 function harvestBuildEnergy(creep) {
     var sources = creep.room.find(FIND_SOURCES);
-    if(creep.harvest(sources[BOTTOM_LEFT_SOURCE]) == ERR_NOT_IN_RANGE) {
+    const result = creep.harvest(sources[BOTTOM_LEFT_SOURCE])
+    console.log('creep.carry', creep.carry)
+    if (creep.carry.energy === creep.carryCapacity) {
+        creep.say('full')
+        return 'FULL'
+    }
+    if( result == ERR_NOT_IN_RANGE) {
         creep.moveTo(sources[BOTTOM_LEFT_SOURCE], {visualizePathStyle: {stroke: '#005566'}});
-  005566}
+        return 'MOVE_TO_HARVEST'
+    } else if (result == OK) {
+        return 'HARVESTING'
+    }
 }
 
 function transferEnergy(creep) {
@@ -204,7 +213,7 @@ function transferEnergy(creep) {
         var availableExtension = extensions.find(function(ext) {
             return ext.energy < 50
         })
-        console.log('available ext', availableExtension)
+        // console.log('available ext', availableExtension)
         if( creep.transfer(availableExtension, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
             creep.moveTo(availableExtension, {visualizePathStyle: {stroke: '#ffffff'}});
         } else {
