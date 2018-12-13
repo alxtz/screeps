@@ -123,7 +123,6 @@ function runAllWorkers() {
                 break;
             }
             case BIG_COLLECTOR: {
-                creep.say('BIG')
                 if (creep.carry.energy < creep.carryCapacity) moveOrHarvestSource(creep)
                 else transferEnergy(creep)
                 break;
@@ -133,7 +132,6 @@ function runAllWorkers() {
                 break;
             }
             case BIG_UPGRADER: {
-                // creep.say('BIG')
                 doUpgraderWork(creep)
                 break;
             }
@@ -180,16 +178,12 @@ function moveOrHarvestSource(creep) {
 function harvestBuildEnergy(creep) {
     var sources = creep.room.find(FIND_SOURCES);
     const result = creep.harvest(sources[BOTTOM_LEFT_SOURCE])
-    // console.log('creep.carry', creep.carry)
     if (creep.carry.energy === creep.carryCapacity) {
         creep.say('full')
-        return 'FULL'
     }
     if( result == ERR_NOT_IN_RANGE) {
         creep.moveTo(sources[BOTTOM_LEFT_SOURCE], {visualizePathStyle: {stroke: '#005566'}});
-        return 'MOVE_TO_HARVEST'
     } else if (result == OK) {
-        return 'HARVESTING'
     }
 }
 
@@ -208,7 +202,6 @@ function transferEnergy(creep) {
         var availableExtension = extensions.find(function(ext) {
             return ext.energy < 50
         })
-        // console.log('available ext', availableExtension)
         if( creep.transfer(availableExtension, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
             creep.moveTo(availableExtension, {visualizePathStyle: {stroke: '#ffffff'}});
         } else {
