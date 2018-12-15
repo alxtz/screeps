@@ -63,7 +63,7 @@ module.exports = () => {
         break
       }
     } else {
-      continue;
+      continue
     }
   }
 }
@@ -84,7 +84,7 @@ function getSpawnLimitOf({ role }) {
     [ROLES.BIG_COLLECTOR]: 0,
     [ROLES.UPGRADER]: 9,
     [ROLES.BIG_UPGRADER]: 2,
-    [ROLES.BUILDER]: 1,
+    [ROLES.BUILDER]: 2,
     [ROLES.ATTACKER]: 2
   }
 
@@ -176,7 +176,31 @@ function tryToSpawn({ role }) {
       const currentEnergy = SPAWN.room.energyAvailable
 
       if (currentEnergy >= bodyCost) {
-        SPAWN.spawnCreep(body, Date.now(), { memory: { role } })
+        const sources = SPAWN.room.find(FIND_SOURCES);
+        let sourceIdToUse
+
+        const populationUsingBottomLeftSource = Object.keys(Game.creeps)
+          .filter(creepName => Game.creeps[creepName].memory.role === ROLES.BUILDER)
+          .filter(creepName => Game.creeps[creepName].memory.sourceIdToUse === sources[BOTTOM_LEFT_SOURCE].id)
+          .length
+
+        const populationUsingBottomRightSource = Object.keys(Game.creeps)
+          .filter(creepName => Game.creeps[creepName].memory.role === ROLES.BUILDER)
+          .filter(creepName => Game.creeps[creepName].memory.sourceIdToUse === sources[BOTTOM_RIGHT_SOURCE].id)
+          .length
+
+        if (populationUsingBottomLeftSource > populationUsingBottomRightSource) {
+          sourceIdToUse = sources[BOTTOM_RIGHT_SOURCE].id
+        } else {
+          sourceIdToUse = sources[BOTTOM_LEFT_SOURCE].id
+        }
+
+        SPAWN.spawnCreep(body, Date.now(), {
+          memory: {
+            role,
+            sourceIdToUse
+          }
+        })
         return TRY_TO_SPAWN_RESULT.SUCCESS
       } else {
         // can't spawn, skip the for loop and wait for more energy
