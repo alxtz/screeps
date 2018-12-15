@@ -11,6 +11,7 @@ const SPAWN_PRIORITY_LIST = [
   ROLES.ATTACKER,
   ROLES.COLLECTOR,
   ROLES.UPGRADER,
+  ROLES.REPAIRER,
   ROLES.BIG_UPGRADER,
   ROLES.BUILDER,
   ROLES.BIG_COLLECTOR,
@@ -32,7 +33,8 @@ module.exports = () => {
     [ROLES.BUILDER]: getPopulationOf({ role: ROLES.BUILDER }),
     [ROLES.BIG_UPGRADER]: getPopulationOf({ role: ROLES.BIG_UPGRADER }),
     [ROLES.BIG_COLLECTOR]: getPopulationOf({ role: ROLES.BIG_COLLECTOR }),
-    [ROLES.ATTACKER]: getPopulationOf({ role: ROLES.ATTACKER })
+    [ROLES.ATTACKER]: getPopulationOf({ role: ROLES.ATTACKER }),
+    [ROLES.REPAIRER]: getPopulationOf({ role: ROLES.REPAIRER }),
   }
 
   console.log(
@@ -42,18 +44,14 @@ module.exports = () => {
     '(BU:' + creepPopulation[ROLES.BIG_UPGRADER] + ')',
     'B:' + creepPopulation[ROLES.BUILDER],
     'A:' + creepPopulation[ROLES.ATTACKER],
-    'TOTAL_ENERGY', SPAWN.room.energyAvailable
+    'R:' + creepPopulation[ROLES.REPAIRER],
+    'TOTAL_ENERGY:' + SPAWN.room.energyAvailable
   )
 
   // using a for looop instead of forEach(), since I want to use the break; statement
   for (let index = 0; index < SPAWN_PRIORITY_LIST.length; index++) {
     const role = SPAWN_PRIORITY_LIST[index]
     const notEnoughCreepsOfThisRole = creepPopulation[role] < getSpawnLimitOf({ role })
-
-    if (notEnoughCreepsOfThisRole) {
-      console.log('not enough', role, notEnoughCreepsOfThisRole)
-      console.log('need', getSpawnLimitOf({ role }), role)
-    }
 
     if (notEnoughCreepsOfThisRole) {
       const result = tryToSpawn({ role })
@@ -85,7 +83,8 @@ function getSpawnLimitOf({ role }) {
     [ROLES.UPGRADER]: 9,
     [ROLES.BIG_UPGRADER]: 2,
     [ROLES.BUILDER]: 2,
-    [ROLES.ATTACKER]: 2
+    [ROLES.ATTACKER]: 2,
+    [ROLES.REPAIRER]: 1
   }
 
   // keep the BU + U always 9
@@ -201,6 +200,23 @@ function tryToSpawn({ role }) {
             sourceIdToUse
           }
         })
+        return TRY_TO_SPAWN_RESULT.SUCCESS
+      } else {
+        // can't spawn, skip the for loop and wait for more energy
+        return TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY
+      }
+    }
+
+    case ROLES.REPAIRER: {
+      const body = [WORK, WORK, CARRY, CARRY, MOVE, MOVE, MOVE, MOVE]
+      const bodyCost = body.reduce((accu, currBodyPart) => {
+        return accu + BODYPART_COST[currBodyPart];
+      }, 0);
+
+      const currentEnergy = SPAWN.room.energyAvailable
+
+      if (currentEnergy >= bodyCost) {
+        SPAWN.spawnCreep(body, Date.now(), { memory: { role } })
         return TRY_TO_SPAWN_RESULT.SUCCESS
       } else {
         // can't spawn, skip the for loop and wait for more energy

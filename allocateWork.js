@@ -74,8 +74,43 @@ module.exports = () => {
         if (result === ERR_NOT_IN_RANGE) {
           creep.moveTo(enemy, { visualizePathStyle: { stroke: "#ffffff" } });
         }
+        break;
       }
 
+      case ROLES.REPAIRER: {
+        creep.say('REPAIRER')
+        const targets = creep.room.find(FIND_STRUCTURES, {
+          filter: structure => structure.hits < structure.hitsMax
+        })
+        targets.sort((a,b) => a.hits - b.hits);
+
+        if (targets.length === 0) return
+
+        console.log('target', targets[0].hits)
+
+        const sources = creep.room.find(FIND_SOURCES);
+        const inRepairRange = creep.repair(targets[0]) !== ERR_NOT_IN_RANGE
+        const ableToHarvest = creep.harvest(sources[BOTTOM_LEFT_SOURCE]) !== ERR_NOT_IN_RANGE && creep.carry.energy < creep.carryCapacity
+        const requireMoving = !inRepairRange && !ableToHarvest
+
+        if (requireMoving) {
+          if (creep.carry.energy > 0) {
+            creep.moveTo(targets[0]);
+          } else {
+            creep.moveTo(sources[BOTTOM_LEFT_SOURCE]);
+          }
+        } else {
+          if (inRepairRange) {
+            const result = creep.repair(targets[0])
+            if (result === ERR_NOT_ENOUGH_RESOURCES) {
+              creep.moveTo(sources[BOTTOM_LEFT_SOURCE]);
+            }
+          } else if (ableToHarvest) {
+            creep.harvest(sources[BOTTOM_LEFT_SOURCE])
+          }
+        }
+        break;
+      }
     }
   }
 }
@@ -115,8 +150,6 @@ function harvestBuildEnergy(creep) {
   const sources = creep.room.find(FIND_SOURCES);
 
   let sourceIdToUse = creep.memory.sourceIdToUse
-
-  console.log('sourceIdToUse', sourceIdToUse)
 
   if (sourceIdToUse === undefined) {
     sourceIdToUse === sources[BOTTOM_RIGHT_SOURCE].id
