@@ -12,8 +12,9 @@ const SPAWN_PRIORITY_LIST = [
   ROLES.COLLECTOR,
   ROLES.UPGRADER,
   ROLES.REPAIRER,
-  ROLES.BIG_UPGRADER,
+  ROLES.TOWER_FILLER,
   ROLES.BUILDER,
+  ROLES.BIG_UPGRADER,
   ROLES.BIG_COLLECTOR,
 ]
 
@@ -35,6 +36,7 @@ module.exports = () => {
     [ROLES.BIG_COLLECTOR]: getPopulationOf({ role: ROLES.BIG_COLLECTOR }),
     [ROLES.ATTACKER]: getPopulationOf({ role: ROLES.ATTACKER }),
     [ROLES.REPAIRER]: getPopulationOf({ role: ROLES.REPAIRER }),
+    [ROLES.TOWER_FILLER]: getPopulationOf({ role: ROLES.TOWER_FILLER }),
   }
 
   console.log(
@@ -45,6 +47,7 @@ module.exports = () => {
     'B:' + creepPopulation[ROLES.BUILDER],
     'A:' + creepPopulation[ROLES.ATTACKER],
     'R:' + creepPopulation[ROLES.REPAIRER],
+    'TF:' + creepPopulation[ROLES.TOWER_FILLER],
     'TOTAL_ENERGY:' + SPAWN.room.energyAvailable
   )
 
@@ -56,8 +59,9 @@ module.exports = () => {
     if (notEnoughCreepsOfThisRole) {
       const result = tryToSpawn({ role })
       if (result === TRY_TO_SPAWN_RESULT.SUCCESS) {
-        continue
+        break
       } else if (result === TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY) {
+        // console.log('try to spawn', role)
         break
       }
     } else {
@@ -78,13 +82,14 @@ function getPopulationOf({ role }) {
 
 function getSpawnLimitOf({ role }) {
   const ROLE_MAX_AMOUNT = {
-    [ROLES.COLLECTOR]: 8,
+    [ROLES.COLLECTOR]: 9,
     [ROLES.BIG_COLLECTOR]: 0,
     [ROLES.UPGRADER]: 9,
-    [ROLES.BIG_UPGRADER]: 2,
-    [ROLES.BUILDER]: 2,
+    [ROLES.BIG_UPGRADER]: 4,
+    [ROLES.BUILDER]: 0,
     [ROLES.ATTACKER]: 2,
-    [ROLES.REPAIRER]: 1
+    [ROLES.REPAIRER]: 2,
+    [ROLES.TOWER_FILLER]: 1,
   }
 
   // keep the BU + U always 9
@@ -113,6 +118,8 @@ function tryToSpawn({ role }) {
         // can't spawn, skip the for loop and wait for more energy
         return TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY
       }
+
+      break;
     }
 
     case ROLES.COLLECTOR: {
@@ -130,6 +137,8 @@ function tryToSpawn({ role }) {
         // can't spawn, skip the for loop and wait for more energy
         return TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY
       }
+
+      break;
     }
 
     case ROLES.UPGRADER: {
@@ -147,6 +156,8 @@ function tryToSpawn({ role }) {
         // can't spawn, skip the for loop and wait for more energy
         return TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY
       }
+
+      break;
     }
 
     case ROLES.BIG_UPGRADER: {
@@ -164,6 +175,8 @@ function tryToSpawn({ role }) {
         // can't spawn, skip the for loop and wait for more energy
         return TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY
       }
+
+      break;
     }
 
     case ROLES.BUILDER: {
@@ -205,6 +218,8 @@ function tryToSpawn({ role }) {
         // can't spawn, skip the for loop and wait for more energy
         return TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY
       }
+
+      break;
     }
 
     case ROLES.REPAIRER: {
@@ -222,6 +237,27 @@ function tryToSpawn({ role }) {
         // can't spawn, skip the for loop and wait for more energy
         return TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY
       }
+
+      break;
+    }
+
+    case ROLES.TOWER_FILLER: {
+      const body = [WORK, CARRY, CARRY, MOVE]
+      const bodyCost = body.reduce((accu, currBodyPart) => {
+        return accu + BODYPART_COST[currBodyPart];
+      }, 0);
+
+      const currentEnergy = SPAWN.room.energyAvailable
+
+      if (currentEnergy >= bodyCost) {
+        SPAWN.spawnCreep(body, Date.now(), { memory: { role } })
+        return TRY_TO_SPAWN_RESULT.SUCCESS
+      } else {
+        // can't spawn, skip the for loop and wait for more energy
+        return TRY_TO_SPAWN_RESULT.NOT_ENOUGH_ENERGY
+      }
+
+      break;
     }
   }
 }

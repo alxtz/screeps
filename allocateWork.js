@@ -78,7 +78,7 @@ module.exports = () => {
       }
 
       case ROLES.REPAIRER: {
-        creep.say('REPAIRER')
+        // creep.say('REPAIRER')
         const targets = creep.room.find(FIND_STRUCTURES, {
           filter: structure => structure.hits < structure.hitsMax
         })
@@ -109,6 +109,37 @@ module.exports = () => {
             creep.harvest(sources[BOTTOM_LEFT_SOURCE])
           }
         }
+        break;
+      }
+
+      case ROLES.TOWER_FILLER: {
+        creep.say('TOWER_FILLER')
+        const targets = creep.room.find(FIND_STRUCTURES, {
+          filter: structure => structure.structureType === STRUCTURE_TOWER
+        })
+
+        const sources = creep.room.find(FIND_SOURCES);
+        const ableToFill = creep.transfer(targets[0], RESOURCE_ENERGY) !== ERR_NOT_IN_RANGE
+        const ableToHarvest = creep.harvest(sources[BOTTOM_LEFT_SOURCE]) !== ERR_NOT_IN_RANGE && creep.carry.energy < creep.carryCapacity
+        const requireMoving = !ableToFill && !ableToHarvest
+
+        if (requireMoving) {
+          if (creep.carry.energy > 0) {
+            creep.moveTo(targets[0]);
+          } else {
+            creep.moveTo(sources[BOTTOM_LEFT_SOURCE]);
+          }
+        } else {
+          if (ableToFill) {
+            const result = creep.transfer(targets[0], RESOURCE_ENERGY)
+            if (result === ERR_NOT_ENOUGH_RESOURCES) {
+              creep.moveTo(sources[BOTTOM_LEFT_SOURCE]);
+            }
+          } else if (ableToHarvest) {
+            creep.harvest(sources[BOTTOM_LEFT_SOURCE])
+          }
+        }
+
         break;
       }
     }
